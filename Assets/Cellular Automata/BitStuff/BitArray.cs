@@ -7,50 +7,55 @@ public class BitArray
     static readonly int _bitsPerInt = 32;
 
     private NativeArray<uint> _bits;
-    private int _size;
+    private long _size;
 
     public NativeArray<uint> Bits => _bits;
 
-    public BitArray(NativeArray<uint> bits, int size)
+    public BitArray(NativeArray<uint> bits, long size)
     {
         _bits = bits;
         _size = size;
     }
 
-    public BitArray(int size)
+    public BitArray(long size)
     {
-        _bits = new NativeArray<uint>(size / _bitsPerInt + 1, Allocator.Persistent);
+        _bits = new NativeArray<uint>((int)(size / _bitsPerInt + 1), Allocator.Persistent);
         _size = size;
     }
 
     public BitArray(string bitString) : this(bitString.Length)
     {
         for (int i = 0; i < _size; i++)
-            this[i] = bitString[_size - i - 1] == '1';
+            this[i] = bitString[(int)(_size - i - 1)] == '1';
     }
 
-    public int Size => _size;
+    public long Size => _size;
 
-    public bool this[int index]
+    public int GetIntIndex(long index){
+        return (int)(index / _bitsPerInt);
+    }
+
+    public int GetBitIndex(long index){
+        return (int)(index % _bitsPerInt);
+    }
+
+    public bool this[long index]
     {
-        get => (_bits[index / _bitsPerInt] & (1u << index % _bitsPerInt)) != 0;
+        get => (_bits[GetIntIndex(index)] & (1u << GetBitIndex(index))) != 0;
         set
         {
-            if (value)
-                _bits[index / _bitsPerInt] |= 1u << index % _bitsPerInt;
-                
-            else
-                _bits[index / _bitsPerInt] &= ~(1u << index % _bitsPerInt);
+            if (value)  _bits[GetIntIndex(index)] |= 1u << GetBitIndex(index);
+            else        _bits[GetIntIndex(index)] &= ~(1u << GetBitIndex(index));
         }
     }
 
-    public uint this[int start, int end]  //assumes length is less than 32
+    public uint this[long start, long end]  //assumes length is less than 32
     {
         get
         {
-            int intIndex = start / _bitsPerInt;
-            int startBitIndex = start % _bitsPerInt;
-            int endBitIndex = end % _bitsPerInt;
+            int intIndex = GetIntIndex(start);
+            int startBitIndex = GetBitIndex(start);
+            int endBitIndex = GetBitIndex(end);
 
             if(startBitIndex > endBitIndex){
                 uint result = _bits[intIndex] >> startBitIndex;
@@ -80,7 +85,7 @@ public class BitArray
         return result;
     }*/
 
-    public BitArray GetSubArray(int start, int end)
+    /*public BitArray GetSubArray(int start, int end)
     {
         int bitLength = end - start + 1;
         int resultIntCount = (bitLength + _bitsPerInt - 1) / _bitsPerInt;
@@ -123,7 +128,7 @@ public class BitArray
         int resultIntCount = (bitLength + _bitsPerInt - 1) / _bitsPerInt;
 
         NativeArray<uint> result = new NativeArray<uint>(resultIntCount, Allocator.Temp);
-    }
+    }*/
 
     public void SetInts(NativeArray<uint> ints, int start){
         for(int i = 0; i < ints.Length; i++){
@@ -142,7 +147,7 @@ public class BitArray
     public override string ToString(){
         string result = "";
         for(int i = 0; i < _size; i++){
-            result += this[_size - i - 1] ? "1" : "0";
+            result += this[(int)(_size - i - 1)] ? "1" : "0";
         }
         return result;
     }

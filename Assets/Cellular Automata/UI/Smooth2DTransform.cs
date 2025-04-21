@@ -4,11 +4,11 @@ using UnityEngine;
 
 public class Smooth2DTransform : MonoBehaviour
 {
-
+    [SerializeField]
     private Vector2 position = Vector2.zero;
     [SerializeField]
     private Vector2 smoothPosition = Vector2.zero;
-
+    [SerializeField]
     private float scale = 1;
     [SerializeField]
     private float smoothScale = 1;
@@ -28,6 +28,11 @@ public class Smooth2DTransform : MonoBehaviour
     {
         smoothPosition = Vector2.Lerp(smoothPosition, position, Time.deltaTime * 10);
         smoothScale = Mathf.Lerp(smoothScale, scale, Time.deltaTime * 10);
+
+        if(Mathf.Abs(smoothScale - scale) < 0.0001f)
+            smoothScale = scale;
+        if((position - smoothPosition).magnitude < 0.01f)
+            smoothPosition = position;
     }
 
     public void multiplyScale(float scalar)

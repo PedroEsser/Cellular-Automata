@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
 
 public class BitMatrix
 {
@@ -9,28 +10,29 @@ public class BitMatrix
     private int _height;
     public int height => _height;
     public BitArray BitArray;
+    public NativeArray<uint> Bits => BitArray.Bits;
 
     public BitMatrix(int width, int height)
     {
         _width = width;
         _height = height;
-        BitArray = new BitArray(width * height);
+        BitArray = new BitArray((long)width * height);
     }
 
     public bool this[int x, int y]
     {
-        get => BitArray[x + y * _width];
-        set => BitArray[x + y * _width] = value;
+        get => BitArray[GetBitIndex(x, y)];
+        set => BitArray[GetBitIndex(x, y)] = value;
     }
 
-    public uint this[int xMin, int yMin, int xMax, int yMax]
+    public uint this[long xMin, long yMin, long xMax, long yMax]
     {
         get{
             uint result = 0;
-            int length = xMax - xMin;
-            for(int i = yMin; i <= yMax; i++){
-                int startBit = xMin + i * _width;
-                result |= BitArray[startBit, startBit + length] << ((yMax - i) * (length + 1));
+            long dx = xMax - xMin;
+            for(long i = yMin; i <= yMax; i++){
+                long startBit = xMin + i * _width;
+                result |= BitArray[startBit, startBit + dx] << (int)((yMax - i) * (dx + 1));
             }
             return result;
         }
@@ -50,19 +52,14 @@ public class BitMatrix
         return clone;
     }
     
-    public void CopyTo(BitMatrix other){
-        BitArray.CopyTo(other.BitArray);
-    }
+    public void CopyTo(BitMatrix other) => BitArray.CopyTo(other.BitArray);
 
-    public void SetBit(int x, int y, bool value){   
-        BitArray[x + y * _width] = value;
-    }
+    public void SetBit(int x, int y, bool value) => BitArray[x + (long)y * _width] = value;
 
-    public bool GetBit(int x, int y){
-        return BitArray[x + y * _width];
-    }
+    public bool GetBit(int x, int y) => BitArray[x + (long)y * _width];
 
-    public int GetBitIndex(int x, int y){
-        return x + y * _width;
-    }
+    public long GetBitIndex(int x, int y) => x + (long)y * _width;
+    
+
+    public long GetBitIndex(Vector2Int position) => GetBitIndex(position.x, position.y);
 }
