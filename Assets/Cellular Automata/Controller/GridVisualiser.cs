@@ -7,39 +7,11 @@ using UnityEngine.EventSystems;
 public class GridVisualiser : MonoBehaviour
 {
     public CellularAutomata2D ca;
-
     public RectTransform rectTransform;
     public Smooth2DTransform smoothTransform;
-
-    public ComputeBuffer gridBuffer;
-    public NativeArray<uint> grid;
     public Material material;
 
     public Vector2 WindowSize => new Vector2(rectTransform.rect.width, rectTransform.rect.height);
-    
-    void Start()
-    {
-        int maxX = SystemInfo.maxComputeWorkGroupSizeX;
-        int maxY = SystemInfo.maxComputeWorkGroupSizeY;
-        int maxZ = SystemInfo.maxComputeWorkGroupSizeZ;
-        int maxTotal = SystemInfo.maxComputeWorkGroupSize; // Total threads (usually 1024)
-
-        Debug.Log("maxX: " + maxX);
-        Debug.Log("maxY: " + maxY);
-        Debug.Log("maxZ: " + maxZ);
-        Debug.Log("maxTotal: " + maxTotal);
-
-        ca = new CellularAutomata2D(1000, 1000, new GameOfLife().rules);
-        //ca.grid.Fill(256, 256, 1024 - 256, 1024 - 256);
-        grid = ca.GetBits();
-        smoothTransform.Position = new Vector2(ca.Grid.width / 2, ca.Grid.height / 2);
-        smoothTransform.Scale = 10;
-
-        gridBuffer = new ComputeBuffer(grid.Length, sizeof(int));
-        gridBuffer.SetData(grid);
-        material.SetBuffer("_GridBuffer", gridBuffer);
-        material.SetVector("_GridDimensions", new Vector4(ca.Grid.width, ca.Grid.height, ca.Grid.width / 32, ca.Grid.width % 32));
-    }
 
     void Update()
     {
@@ -48,24 +20,17 @@ public class GridVisualiser : MonoBehaviour
         material.SetFloat("_Scale", smoothTransform.Scale);
     }
 
-    void OnDestroy()
-    {
-        gridBuffer?.Release();
-        ca.Dispose();
-    }
-
-    public void NextGeneration()
-    {
-        ca.Step();
-        UpdateBuffer();
+    public void Initialize(CellularAutomata2D ca){
+        this.ca = ca;
+        smoothTransform.Initialize(new Vector2(ca.Grid.Width / 2, ca.Grid.Height / 2), 20);
+        material.SetBuffer("_GridBuffer", ca.currentBuffer);
+        material.SetVector("_GridDimensions", new Vector4(ca.Grid.Width, ca.Grid.Height, ca.Grid.Width / 32, ca.Grid.Width % 32));
     }
 
     public Vector2 PixelToWorld(Vector2 pixel)
     {
         return pixel / WindowSize.x * smoothTransform.Scale + smoothTransform.Position;
     }
-
-    public void UpdateBuffer() => gridBuffer.SetData(ca.Grid.Bits);
 
     public long GetCellAt(Vector2 pixel)
     {
@@ -99,19 +64,12 @@ public class GridVisualiser : MonoBehaviour
     {
         PointerEventData pointerEventData = (PointerEventData)eventData;
         Vector2 pixel = GetPointInWindow(pointerEventData.position);
-        long cellIndex = GetCellAt(pixel);
+        Vector2 worldPosition = PixelToWorld(pixel);
 
         if(pointerEventData.button == PointerEventData.InputButton.Right){
-            ca.Grid.BitArray[cellIndex] = !ca.Grid.BitArray[cellIndex];
-            UpdateBuffer();
+            ca.FlipCell(Vector2Int.FloorToInt(worldPosition));
         }else if(pointerEventData.button == PointerEventData.InputButton.Middle){
-            Debug.Log("Cell coordinates: " + Vector2Int.FloorToInt(PixelToWorld(pixel)));
-            Debug.Log("CellIndex: " + cellIndex);
-            Debug.Log("Int index: " + cellIndex / 32);
-            Debug.Log("BitArray Int index: " + ca.Grid.BitArray.GetIntIndex(cellIndex));
-            Debug.Log("Bit index: " + cellIndex % 32);
-            Debug.Log("BitArray Bit index: " + ca.Grid.BitArray.GetBitIndex(cellIndex));
-            Debug.Log("Bit: " + ca.Grid.BitArray[cellIndex]);
+            Debug.Log("Cell coordinates: " + Vector2Int.FloorToInt(worldPosition));
         }
     }
 

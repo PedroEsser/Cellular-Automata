@@ -6,9 +6,9 @@ using Unity.Collections;
 public class BitMatrix
 {
     private int _width;
-    public int width => _width;
+    public int Width => _width;
     private int _height;
-    public int height => _height;
+    public int Height => _height;
     public BitArray BitArray;
     public NativeArray<uint> Bits => BitArray.Bits;
 
@@ -38,7 +38,9 @@ public class BitMatrix
         }
     }
 
-    public void Fill(int xMin, int yMin, int xMax, int yMax, bool value = true){
+    public void Fill(int xMin = 0, int yMin = 0, int xMax = -1, int yMax = -1, bool value = true){
+        if(xMax == -1) xMax = _width - 1;
+        if(yMax == -1) yMax = _height - 1;
         for(int i = yMin; i <= yMax; i++){
             for(int j = xMin; j <= xMax; j++){
                 this[j, i] = value;

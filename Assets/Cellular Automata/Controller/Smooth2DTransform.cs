@@ -6,11 +6,10 @@ public class Smooth2DTransform : MonoBehaviour
 {
     [SerializeField]
     private Vector2 position = Vector2.zero;
-    [SerializeField]
     private Vector2 smoothPosition = Vector2.zero;
+
     [SerializeField]
     private float scale = 1;
-    [SerializeField]
     private float smoothScale = 1;
 
     public Vector2 Position {
@@ -33,6 +32,14 @@ public class Smooth2DTransform : MonoBehaviour
             smoothScale = scale;
         if((position - smoothPosition).magnitude < 0.01f)
             smoothPosition = position;
+    }
+
+    public void Initialize(Vector2 position = default, float scale = 1)
+    {
+        this.position = position;
+        this.smoothPosition = position;
+        this.scale = scale;
+        this.smoothScale = scale;
     }
 
     public void multiplyScale(float scalar)

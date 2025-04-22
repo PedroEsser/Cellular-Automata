@@ -1,0 +1,66 @@
+#pragma kernel StepKernel
+#pragma kernel FlipCellKernel
+#pragma kernel FillShapeKernel
+
+RWBuffer<uint> ResultBuffer;
+RWBuffer<uint> CurrentBuffer; 
+Buffer<uint> RuleBuffer;
+
+uint4 GridSize;
+uint4 FlipCell;
+uint4 FillArea;
+
+[numthreads(256, 1, 1)]
+void StepKernel (uint3 id : SV_DispatchThreadID)
+{
+    uint result = 0;
+
+    for (int i = 0; i < 32; i++){
+        uint neighbors = 0;
+        int cellIndex = id.x * 32 + i;
+        //int cx = ((intIndex) % GridSize.x * 32 + i) % GridSize.x;
+        //int cy = ((intIndex) / GridSize.x * 32 + i) % GridSize.y;
+        int cx = cellIndex % GridSize.x;
+        int cy = cellIndex / GridSize.x;
+
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                int x = (cx + dx + GridSize.x) % GridSize.x;
+                int y = (cy + dy + GridSize.y) % GridSize.y;
+                int bitIndex = (x + y * GridSize.w);
+                int intIndex = bitIndex / 32u + y * GridSize.z;
+                bitIndex %= 32u;
+                uint cellValue = (CurrentBuffer[intIndex] >> bitIndex) & 1;
+
+                neighbors |= (cellValue << (1 - dx + (dy + 1) * 3));
+            }
+        }
+
+        uint rule = RuleBuffer[neighbors / 32u] >> (neighbors % 32u) & 1;
+        result |= (rule << i);
+    }
+    
+    ResultBuffer[id.x] = result;
+}
+
+[numthreads(1, 1, 1)]
+void FlipCellKernel (uint3 id : SV_DispatchThreadID)
+{
+    int bitIndex = (FlipCell.x + FlipCell.y * GridSize.w);
+    int intIndex = bitIndex / 32u + FlipCell.y * GridSize.z;
+    bitIndex %= 32u;
+
+    CurrentBuffer[intIndex] ^= 1u << bitIndex;
+}
+
+[numthreads(1, 1, 1)]
+void FillShapeKernel (uint3 id : SV_DispatchThreadID)
+{
+    int bitIndex = (FlipCell.x + FlipCell.y * GridSize.w);
+    int intIndex = bitIndex / 32u + FlipCell.y * GridSize.z;
+    bitIndex %= 32u;
+
+    CurrentBuffer[intIndex] ^= 1u << bitIndex;
+}

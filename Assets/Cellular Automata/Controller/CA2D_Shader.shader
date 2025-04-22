@@ -6,6 +6,7 @@ Shader "CA/CA_2DShader"
         _Position ("Position", Vector) = (0, 0, 0, 0)
         _Scale ("Scale", Float) = 1
         _GridDimensions ("Grid Dimensions", Vector) = (0, 0, 0, 0)
+        _ShowGridlines ("Show Gridlines", Float) = 0
     }
     SubShader
     {
@@ -36,7 +37,8 @@ Shader "CA/CA_2DShader"
             float _Scale;
             int4 _GridDimensions;
             float2 _WindowSize;
-            
+            float _ShowGridlines;
+
             v2f vert (appdata v)
             {
                 v2f o;
@@ -52,6 +54,14 @@ Shader "CA/CA_2DShader"
                     return 0.5;
                 }
 
+                int bitIndex = (gridPos.x + gridPos.y * _GridDimensions.w);
+                int intIndex = bitIndex / 32 + gridPos.y * _GridDimensions.z;
+                bitIndex %= 32;
+                int cellValue = (_GridBuffer[intIndex] >> bitIndex) & 1;
+                if(_ShowGridlines == 0) {
+                    return cellValue;
+                }
+
                 float2 cellPos = frac(i.uv.xy); // position within the cell (0 to 1)
                 float lineWidth = clamp(0.001 * _Scale, 0.0005, 0.01); // adjust thickness based on zoom
                 float edgeAA = fwidth(cellPos.x); // screen-space derivative for anti-aliasing
@@ -65,11 +75,8 @@ Shader "CA/CA_2DShader"
                 float gridLine = 1.0 - min(lineX, lineY); // 1 = inside line, 0 = cell body
 
                 //int cellIndex = gridPos.x + gridPos.y * _GridDimensions.x;
-                int bitIndex = (gridPos.x + gridPos.y * _GridDimensions.w);
-                int intIndex = bitIndex / 32 + gridPos.y * _GridDimensions.z;
-                bitIndex %= 32;
-                int cellValue = (_GridBuffer[intIndex] >> bitIndex) & 1;
-                return lerp(cellValue, 1.0, gridLine);
+                
+                return lerp(cellValue, 1, gridLine);
                 //return cellValue;
             }
             ENDCG
