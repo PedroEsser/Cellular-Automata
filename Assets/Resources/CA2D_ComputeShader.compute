@@ -1,10 +1,18 @@
 #pragma kernel StepKernel
+#pragma kernel BorderKernel
 #pragma kernel FlipCellKernel
 #pragma kernel FillShapeKernel
 
 RWBuffer<uint> ResultBuffer;
-RWBuffer<uint> CurrentBuffer; 
+Buffer<uint> CurrentBuffer;
 Buffer<uint> RuleBuffer;
+Buffer<uint> ShapeBuffer;
+
+int BorderMode;
+#define Dead 0
+#define Alive 1
+#define Wrap 2
+#define Mirror 3
 
 uint4 GridSize;
 uint4 FlipCell;
@@ -13,24 +21,29 @@ uint4 FillArea;
 [numthreads(256, 1, 1)]
 void StepKernel (uint3 id : SV_DispatchThreadID)
 {
-    uint result = 0;
+    uint cx = (id.x % (GridSize.z / 32)) * 32;
+    uint cy = id.x / (GridSize.z / 32);
 
-    for (int i = 0; i < 32; i++){
+    if(cy == 0 || cy == GridSize.w - 1)
+        return;
+
+    uint result = 0;
+    
+    uint i = cx == 0 ? 1 : 0;
+    for (i; i < 32; i++){
         uint neighbors = 0;
-        int cellIndex = id.x * 32 + i;
-        //int cx = ((intIndex) % GridSize.x * 32 + i) % GridSize.x;
-        //int cy = ((intIndex) / GridSize.x * 32 + i) % GridSize.y;
-        int cx = cellIndex % GridSize.x;
-        int cy = cellIndex / GridSize.x;
+        if((cx + i) > GridSize.x)
+            break;
 
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                int x = (cx + dx + GridSize.x) % GridSize.x;
-                int y = (cy + dy + GridSize.y) % GridSize.y;
-                int bitIndex = (x + y * GridSize.w);
-                int intIndex = bitIndex / 32u + y * GridSize.z;
+                int x = cx + i + dx;
+                int y = cy + dy;
+
+                int bitIndex = (x + y * GridSize.z);
+                int intIndex = bitIndex / 32u;
                 bitIndex %= 32u;
                 uint cellValue = (CurrentBuffer[intIndex] >> bitIndex) & 1;
 
@@ -45,22 +58,104 @@ void StepKernel (uint3 id : SV_DispatchThreadID)
     ResultBuffer[id.x] = result;
 }
 
+[numthreads(256, 1, 1)] 
+void BorderKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint cx = id.x % (GridSize.z / 32);
+    uint cy = id.x / (GridSize.z / 32);
+    uint intIndex = cy * (GridSize.z / 32) + cx;
+    uint value = 0;
+
+    if(cy == 0 || cy == GridSize.w - 1){
+        switch(BorderMode){
+            case Dead: ResultBuffer[intIndex] = 0;
+                return;
+            case Alive: ResultBuffer[intIndex] = ~0u;
+                return;
+            case Wrap:
+                if(cy == 0){
+                    ResultBuffer[intIndex] = ResultBuffer[intIndex + GridSize.z / 32 * GridSize.y];
+                }else{
+                    ResultBuffer[intIndex] = ResultBuffer[intIndex - GridSize.z / 32 * GridSize.y];
+                }
+                return;
+            case Mirror:
+                if(cy == 0){
+                    ResultBuffer[intIndex] = ResultBuffer[intIndex + GridSize.z / 32];
+                }else{
+                    ResultBuffer[intIndex] = ResultBuffer[intIndex - GridSize.z / 32];
+                }
+                return;
+        }
+    }
+
+    if(cx == 0){
+        switch(BorderMode){
+            case Dead: ResultBuffer[intIndex] &= ~1u;
+                return;
+            case Alive: ResultBuffer[intIndex] |= 1u;
+                return;
+            case Wrap: 
+                value = ResultBuffer[intIndex + GridSize.z / 32 - 1] >> (GridSize.x % 32) & 1u;
+                value |= (ResultBuffer[intIndex] & ~1u);
+                ResultBuffer[intIndex] = value;
+                return;
+            case Mirror:
+                value = ResultBuffer[intIndex] >> 1 & 1u;
+                value |= (ResultBuffer[intIndex] & ~1u);
+                ResultBuffer[intIndex] = value;
+                return;
+        }
+    }else if(cx == GridSize.z / 32 - 1){
+        uint mask = 1u << (1 + GridSize.x % 32);
+        switch(BorderMode){
+            case Dead: ResultBuffer[intIndex] &= ~mask;
+                return;
+            case Alive: ResultBuffer[intIndex] |= mask;
+                return;
+            case Wrap:
+                value = (ResultBuffer[cy * GridSize.z / 32] >> 1) & 1u;
+                value <<= (1 + GridSize.x % 32);
+                value |= (ResultBuffer[intIndex] & ~mask);
+                ResultBuffer[intIndex] = value;
+                return;
+            case Mirror:
+                value = ResultBuffer[intIndex] & (mask >> 1);
+                value <<= 1;
+                value |= (ResultBuffer[intIndex] & ~mask);
+                ResultBuffer[intIndex] = value;
+                return;
+        }
+    }
+}
+
 [numthreads(1, 1, 1)]
 void FlipCellKernel (uint3 id : SV_DispatchThreadID)
 {
-    int bitIndex = (FlipCell.x + FlipCell.y * GridSize.w);
-    int intIndex = bitIndex / 32u + FlipCell.y * GridSize.z;
-    bitIndex %= 32u;
+    int cellIndex = FlipCell.x + FlipCell.y * GridSize.z;
+    int bitIndex = cellIndex % 32u;
+    int intIndex = cellIndex / 32u;
 
-    CurrentBuffer[intIndex] ^= 1u << bitIndex;
+    ResultBuffer[intIndex] ^= 1u << bitIndex;
 }
 
 [numthreads(1, 1, 1)]
 void FillShapeKernel (uint3 id : SV_DispatchThreadID)
 {
-    int bitIndex = (FlipCell.x + FlipCell.y * GridSize.w);
-    int intIndex = bitIndex / 32u + FlipCell.y * GridSize.z;
-    bitIndex %= 32u;
 
-    CurrentBuffer[intIndex] ^= 1u << bitIndex;
+    for(int i = 0; i < FillArea.z; i++){
+        for(int j = 0; j < FillArea.w; j++){
+            int bitIndex = (i + j * GridSize.w);
+            int intIndex = bitIndex / 32u + j * GridSize.z;
+            bitIndex %= 32u;
+
+            uint shapeValue = ShapeBuffer[intIndex] >> bitIndex & 1;
+
+            bitIndex = (i + FillArea.x + (j + FillArea.y) * GridSize.w);
+            intIndex = bitIndex / 32u + (j + FillArea.y) * GridSize.z;
+            bitIndex %= 32u;
+            ResultBuffer[intIndex] |= shapeValue << bitIndex;
+        }
+    }
+
 }

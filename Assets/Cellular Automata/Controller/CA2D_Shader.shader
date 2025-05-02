@@ -50,13 +50,19 @@ Shader "CA/CA_2DShader"
             fixed4 frag (v2f i) : SV_Target
             {
                 int2 gridPos = int2(floor(i.uv.xy));
-                if(gridPos.x < 0 || gridPos.x >= _GridDimensions.x || gridPos.y < 0 || gridPos.y >= _GridDimensions.y) {
-                    return 0.5;
-                }
+                float alpha = 1;
 
-                int bitIndex = (gridPos.x + gridPos.y * _GridDimensions.w);
-                int intIndex = bitIndex / 32 + gridPos.y * _GridDimensions.z;
-                bitIndex %= 32;
+                if(gridPos.x < 0 || gridPos.x > (_GridDimensions.x + 1) || gridPos.y < 0 || gridPos.y > (_GridDimensions.w - 1)) {
+                    return 0.1;
+                }
+                if(gridPos.x == 0 || gridPos.x == (_GridDimensions.x + 1) || gridPos.y == 0 || gridPos.y == (_GridDimensions.w - 1)) {
+                    alpha = 0.25;
+                }
+                
+
+                int cellIndex = gridPos.x + gridPos.y * _GridDimensions.z;
+                int bitIndex = cellIndex % 32;
+                int intIndex = cellIndex / 32;
                 int cellValue = (_GridBuffer[intIndex] >> bitIndex) & 1;
                 if(_ShowGridlines == 0) {
                     return cellValue;
@@ -75,8 +81,7 @@ Shader "CA/CA_2DShader"
                 float gridLine = 1.0 - min(lineX, lineY); // 1 = inside line, 0 = cell body
 
                 //int cellIndex = gridPos.x + gridPos.y * _GridDimensions.x;
-                
-                return lerp(cellValue, 1, gridLine);
+                return lerp(cellValue, 1, gridLine) * alpha;
                 //return cellValue;
             }
             ENDCG

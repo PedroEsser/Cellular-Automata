@@ -16,7 +16,7 @@ public class Player : MonoBehaviour
     public Text StepCounter;
 
     public TMP_InputField fpsInput;
-    public int targetFPS = 30;
+    public int targetFPS = 10;
     private float timeLeft = 0;
 
     public void TogglePlay()

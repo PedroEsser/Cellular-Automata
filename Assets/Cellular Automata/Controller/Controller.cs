@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using static ExampleRules;
 
 public class Controller : MonoBehaviour
 {
@@ -16,7 +17,7 @@ public class Controller : MonoBehaviour
     
     void Start()
     {
-        ca = new CellularAutomata2D(300, 300, new GameOfLife().rules);
+        ca = new CellularAutomata2D(40, 40, ExampleRules.GameOfLife());
         gridVisualiser.Initialize(ca);
         widthInput.text = ca.Width.ToString();
         heightInput.text = ca.Height.ToString();
@@ -52,4 +53,7 @@ public class Controller : MonoBehaviour
         }
     }
 
+    public void SetBorderMode(int borderMode){
+        ca.SetBorderMode((CellularAutomata2D.BorderMode)borderMode);
+    }
 }

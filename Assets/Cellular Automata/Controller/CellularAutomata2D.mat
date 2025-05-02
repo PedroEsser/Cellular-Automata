@@ -75,8 +75,8 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Scale: 238.36356
-    - _ShowGridlines: 0
+    - _Scale: 94.31791
+    - _ShowGridlines: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -85,8 +85,8 @@ Material:
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _GridDimensions: {r: 300, g: 300, b: 9, a: 12}
-    - _Position: {r: 133.49449, g: 142.08855, b: 0, a: 0}
+    - _GridDimensions: {r: 40, g: 40, b: 64, a: 42}
+    - _Position: {r: 20, g: 20, b: 0, a: 0}
     - _Scale: {r: 0.20505926, g: 0.20505926, b: 0, a: 0}
     - _WindowSize: {r: 1570, g: 900, b: 0, a: 0}
   m_BuildTextureStacks: []

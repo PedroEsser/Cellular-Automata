@@ -10,7 +10,7 @@ public class BitMatrix
     private int _height;
     public int Height => _height;
     public BitArray BitArray;
-    public NativeArray<uint> Bits => BitArray.Bits;
+    public uint[] Bits => BitArray.Bits;
 
     public BitMatrix(int width, int height)
     {
